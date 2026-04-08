@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         影刀社区文章自动加载与搜索器和排序7.0
+// @name         影刀社区文章自动加载与搜索器和排序ceshi
 // @namespace    http://tampermonkey.net/
-// @version      2.6
+// @version      8.0
 // @description  优化影刀社区页面，支持大量文章自动加载（每次500条）和搜索功能，精简代码，提升性能，修复栏目识别问题，修复收藏栏目加载数量(支持Fetch和XHR)
 // @author       Antigravity
 // @match        *://www.yingdao.com/community/userCenter?userUuid*
@@ -13,6 +13,7 @@
 
     // --- 1. 配置与常量 ---
     const 配置 = {
+        版本: '2.6',           // 脚本版本号，用于版本控制
         每页加载数量: 500,
         初始延时: 2000,       // 普通栏目切换等待
         回答栏目延时: 4000,   // 回答栏目特殊等待
@@ -68,6 +69,9 @@
     function 初始化() {
         console.log('影刀社区优化脚本 v2.6 启动...');
 
+        // 版本控制：检查并更新配置
+        检查版本();
+
         注入API拦截器();
         添加搜索框();
         设置全局事件监听();
@@ -82,6 +86,69 @@
         }, 1000);
 
         window.addEventListener('error', e => console.error('全局错误:', e.message));
+    }
+
+    // 生成哈希值
+    function 生成哈希(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return hash.toString(16);
+    }
+
+    // 生成脚本关键部分的哈希值
+    function 生成脚本哈希() {
+        // 提取脚本的关键部分，用于生成哈希值
+        const 关键部分 = `
+            ${配置.版本}
+            ${JSON.stringify(选择器)}
+            ${执行搜索.toString()}
+            ${按时间排序.toString()}
+            ${恢复原始顺序.toString()}
+        `;
+        return 生成哈希(关键部分);
+    }
+
+    // 版本控制：检查版本并更新配置
+    function 检查版本() {
+        try {
+            const storedVersion = localStorage.getItem('yd_script_version');
+            const storedHash = localStorage.getItem('yd_script_hash');
+            const currentVersion = 配置.版本;
+            const currentHash = 生成脚本哈希();
+
+            // 如果版本或哈希值不匹配，清除旧配置
+            if (storedVersion !== currentVersion || storedHash !== currentHash) {
+                console.log(`版本更新: ${storedVersion || '无'} -> ${currentVersion}`);
+                console.log(`哈希更新: ${storedHash || '无'} -> ${currentHash}`);
+                localStorage.removeItem('yd_sort_state');
+                localStorage.setItem('yd_script_version', currentVersion);
+                localStorage.setItem('yd_script_hash', currentHash);
+                console.log('已清除旧配置，应用新配置');
+            } else {
+                console.log(`当前版本: ${currentVersion}`);
+                console.log(`当前哈希: ${currentHash}`);
+            }
+        } catch (e) {
+            console.error('版本检查失败:', e);
+        }
+    }
+
+    // 清除所有配置
+    function 清除所有配置() {
+        try {
+            localStorage.removeItem('yd_sort_state');
+            localStorage.removeItem('yd_script_version');
+            localStorage.removeItem('yd_script_hash');
+            console.log('已清除所有配置');
+            显示提示('已清除所有配置');
+        } catch (e) {
+            console.error('清除配置失败:', e);
+            显示提示('清除配置失败', false);
+        }
     }
 
     // --- 4. 核心功能：API拦截 ---
@@ -447,6 +514,7 @@
                 <button id="yd-clear-btn" style="padding:8px 16px; background:#f0f0f0; border:1px solid #d9d9d9; border-radius:4px; cursor:pointer;">清除</button>
                 <button id="yd-sort-btn" style="padding:8px 16px; background:#52c41a; color:white; border:none; border-radius:4px; cursor:pointer;">按时间排序</button>
                 <button id="yd-reset-sort-btn" style="padding:8px 16px; background:#faad14; color:white; border:none; border-radius:4px; cursor:pointer; display:none;">取消排序</button>
+                <button id="yd-clear-config-btn" style="padding:8px 16px; background:#ff4d4f; color:white; border:none; border-radius:4px; cursor:pointer;">清除配置</button>
             </div>
         `;
         document.body.appendChild(div);
@@ -456,6 +524,7 @@
         const clearBtn = document.getElementById('yd-clear-btn');
         const sortBtn = document.getElementById('yd-sort-btn');
         const resetSortBtn = document.getElementById('yd-reset-sort-btn');
+        const clearConfigBtn = document.getElementById('yd-clear-config-btn');
 
         const handleSearch = () => 执行搜索(input.value);
 
@@ -474,6 +543,8 @@
             sortBtn.style.display = 'inline-block';
             resetSortBtn.style.display = 'none';
         };
+
+        clearConfigBtn.onclick = 清除所有配置;
     }
 
     function 执行搜索(关键词) {
@@ -487,8 +558,12 @@
         for (const sel of 选择器.内容项) {
             const 候选项目 = Array.from(面板.querySelectorAll(sel));
             所有项目 = 候选项目.filter(item => {
-                const isButton = item.tagName === 'BUTTON' || item.closest('button') || item.closest('.btn___N0geJ');
-                return !isButton;
+                // 排除按钮元素及其父容器
+                const isButton = item.tagName === 'BUTTON' || item.closest('button');
+                const isButtonContainer = item.classList.contains('btn___N0geJ') || item.closest('.btn___N0geJ');
+                // 排除包含按钮的容器
+                const containsButton = item.querySelector('button') || item.querySelector('.btn___N0geJ');
+                return !isButton && !isButtonContainer && !containsButton;
             });
             if (所有项目.length > 0) break;
         }
@@ -587,8 +662,12 @@
         for (const sel of 选择器.内容项) {
             const 候选项目 = Array.from(面板.querySelectorAll(sel));
             所有项目 = 候选项目.filter(item => {
-                const isButton = item.tagName === 'BUTTON' || item.closest('button') || item.closest('.btn___N0geJ');
-                return !isButton;
+                // 排除按钮元素及其父容器
+                const isButton = item.tagName === 'BUTTON' || item.closest('button');
+                const isButtonContainer = item.classList.contains('btn___N0geJ') || item.closest('.btn___N0geJ');
+                // 排除包含按钮的容器
+                const containsButton = item.querySelector('button') || item.querySelector('.btn___N0geJ');
+                return !isButton && !isButtonContainer && !containsButton;
             });
             if (所有项目.length > 0) break;
         }
