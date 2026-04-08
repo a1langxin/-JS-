@@ -490,7 +490,9 @@
                 // 排除按钮元素及其父容器
                 const isButton = item.tagName === 'BUTTON' || item.closest('button');
                 const isButtonContainer = item.classList.contains('btn___N0geJ') || item.closest('.btn___N0geJ');
-                return !isButton && !isButtonContainer;
+                // 排除包含按钮的容器
+                const containsButton = item.querySelector('button') || item.querySelector('.btn___N0geJ');
+                return !isButton && !isButtonContainer && !containsButton;
             });
             if (所有项目.length > 0) break;
         }
@@ -592,7 +594,9 @@
                 // 排除按钮元素及其父容器
                 const isButton = item.tagName === 'BUTTON' || item.closest('button');
                 const isButtonContainer = item.classList.contains('btn___N0geJ') || item.closest('.btn___N0geJ');
-                return !isButton && !isButtonContainer;
+                // 排除包含按钮的容器
+                const containsButton = item.querySelector('button') || item.querySelector('.btn___N0geJ');
+                return !isButton && !isButtonContainer && !containsButton;
             });
             if (所有项目.length > 0) break;
         }
