@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         影刀社区文章自动加载与搜索器_优化版
+// @name         影刀社区文章自动加载与搜索器和排序3.0-正式版
 // @namespace    http://tampermonkey.net/
 // @version      2.6
 // @description  优化影刀社区页面，支持大量文章自动加载（每次500条）和搜索功能，精简代码，提升性能，修复栏目识别问题，修复收藏栏目加载数量(支持Fetch和XHR)
@@ -76,6 +76,9 @@
         setTimeout(() => {
             同步状态();
             开始自动加载();
+
+            // 检查本地存储中的排序状态
+            setTimeout(检查并应用排序状态, 3000); // 延迟执行，确保页面已加载完成
         }, 1000);
 
         window.addEventListener('error', e => console.error('全局错误:', e.message));
@@ -460,7 +463,7 @@
         clearBtn.onclick = () => { input.value = ''; 执行搜索(''); };
         input.onkeypress = (e) => { if (e.key === 'Enter') handleSearch(); };
         input.oninput = () => { if (!input.value.trim()) 执行搜索(''); };
-        
+
         sortBtn.onclick = () => {
             按时间排序();
             sortBtn.style.display = 'none';
@@ -591,11 +594,22 @@
         状态.原始顺序 = 所有项目.slice();
         状态.排序模式 = true;
 
+        // 保存排序状态到本地存储（按栏目保存）
+        try {
+            const sortState = JSON.parse(localStorage.getItem('yd_sort_state') || '{}');
+            const key = `${状态.大栏目}-${状态.子栏目}`;
+            sortState[key] = true;
+            localStorage.setItem('yd_sort_state', JSON.stringify(sortState));
+            console.log(`保存排序状态: ${key} = true`);
+        } catch (e) {
+            console.error('保存排序状态失败:', e);
+        }
+
         // 尝试从文章元素中提取时间信息（备用方案）
         let 项目时间映射 = [];
         所有项目.forEach((item, index) => {
             let 时间字符串 = '';
-            
+
             // 优先使用 API 保存的数据
             if (状态.文章数据[index] && 状态.文章数据[index].createTime) {
                 时间字符串 = 状态.文章数据[index].createTime;
@@ -607,7 +621,7 @@
                     时间字符串 = 时间匹配[1];
                 }
             }
-            
+
             项目时间映射.push({
                 element: item,
                 createTime: 时间字符串,
@@ -645,7 +659,48 @@
         }
 
         状态.排序模式 = false;
+
+        // 清除本地存储中的排序状态（按栏目清除）
+        try {
+            const sortState = JSON.parse(localStorage.getItem('yd_sort_state') || '{}');
+            const key = `${状态.大栏目}-${状态.子栏目}`;
+            delete sortState[key];
+            localStorage.setItem('yd_sort_state', JSON.stringify(sortState));
+            console.log(`清除排序状态: ${key}`);
+        } catch (e) {
+            console.error('清除排序状态失败:', e);
+        }
+
         显示提示('已恢复原始顺序');
+    }
+
+    // 检查并应用当前栏目的排序状态
+    function 检查并应用排序状态() {
+        try {
+            const sortState = JSON.parse(localStorage.getItem('yd_sort_state') || '{}');
+            const key = `${状态.大栏目}-${状态.子栏目}`;
+            const isSorted = sortState[key] === true;
+
+            console.log(`检查排序状态: ${key} = ${isSorted}`);
+
+            // 更新按钮显示状态
+            const sortBtn = document.getElementById('yd-sort-btn');
+            const resetSortBtn = document.getElementById('yd-reset-sort-btn');
+
+            if (isSorted) {
+                // 延迟执行排序，确保DOM已加载
+                setTimeout(() => {
+                    按时间排序();
+                    if (sortBtn) sortBtn.style.display = 'none';
+                    if (resetSortBtn) resetSortBtn.style.display = 'inline-block';
+                }, 500);
+            } else {
+                if (sortBtn) sortBtn.style.display = 'inline-block';
+                if (resetSortBtn) resetSortBtn.style.display = 'none';
+            }
+        } catch (e) {
+            console.error('检查排序状态失败:', e);
+        }
     }
 
     // 在栏目切换时重置排序状态
@@ -653,12 +708,9 @@
         状态.文章数据 = [];
         状态.原始顺序 = [];
         状态.排序模式 = false;
-        
-        // 重置按钮显示
-        const sortBtn = document.getElementById('yd-sort-btn');
-        const resetSortBtn = document.getElementById('yd-reset-sort-btn');
-        if (sortBtn) sortBtn.style.display = 'inline-block';
-        if (resetSortBtn) resetSortBtn.style.display = 'none';
+
+        // 检查并应用当前栏目的排序状态
+        setTimeout(检查并应用排序状态, 1000);
     }
 
     // --- 8. 事件监听优化 ---
@@ -715,7 +767,7 @@
 
                     状态.手动切换 = true;
                     console.log(`状态更新(点击): [${状态.大栏目}-${状态.子栏目}] 总数: ${状态.总数量}`);
-                    
+
                     // 重置排序状态
                     重置排序状态();
 
