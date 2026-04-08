@@ -61,7 +61,8 @@
         手动切换: false,      // 标记是否刚进行了手动切换
         文章数据: [],          // 保存文章数据，包含 createTime 和原始顺序
         原始顺序: [],          // 保存原始 DOM 顺序
-        排序模式: false        // 是否处于排序模式
+        排序模式: 'default',   // 排序模式: 'default' (原始), 'newest' (时间越近越前), 'oldest' (时间越久越前)
+        当前排序按钮文本: '时间越近排前' // 当前按钮显示的文本
     };
 
     // --- 3. 初始化 ---
@@ -445,8 +446,7 @@
                 <input id="yd-search-input" type="text" placeholder="搜索内容..." style="padding:8px; border:1px solid #d9d9d9; border-radius:4px; width:200px;">
                 <button id="yd-search-btn" style="padding:8px 16px; background:#1890ff; color:white; border:none; border-radius:4px; cursor:pointer;">搜索</button>
                 <button id="yd-clear-btn" style="padding:8px 16px; background:#f0f0f0; border:1px solid #d9d9d9; border-radius:4px; cursor:pointer;">清除</button>
-                <button id="yd-sort-btn" style="padding:8px 16px; background:#52c41a; color:white; border:none; border-radius:4px; cursor:pointer;">按时间排序</button>
-                <button id="yd-reset-sort-btn" style="padding:8px 16px; background:#faad14; color:white; border:none; border-radius:4px; cursor:pointer; display:none;">取消排序</button>
+                <button id="yd-cycle-sort-btn" style="padding:8px 16px; background:#52c41a; color:white; border:none; border-radius:4px; cursor:pointer;">时间越近排前</button>
             </div>
         `;
         document.body.appendChild(div);
@@ -454,8 +454,7 @@
         const input = document.getElementById('yd-search-input');
         const searchBtn = document.getElementById('yd-search-btn');
         const clearBtn = document.getElementById('yd-clear-btn');
-        const sortBtn = document.getElementById('yd-sort-btn');
-        const resetSortBtn = document.getElementById('yd-reset-sort-btn');
+        const cycleSortBtn = document.getElementById('yd-cycle-sort-btn');
 
         const handleSearch = () => 执行搜索(input.value);
 
@@ -464,15 +463,8 @@
         input.onkeypress = (e) => { if (e.key === 'Enter') handleSearch(); };
         input.oninput = () => { if (!input.value.trim()) 执行搜索(''); };
         
-        sortBtn.onclick = () => {
-            按时间排序();
-            sortBtn.style.display = 'none';
-            resetSortBtn.style.display = 'inline-block';
-        };
-        resetSortBtn.onclick = () => {
-            恢复原始顺序();
-            sortBtn.style.display = 'inline-block';
-            resetSortBtn.style.display = 'none';
+        cycleSortBtn.onclick = () => {
+            循环切换排序();
         };
     }
 
@@ -574,7 +566,7 @@
     }
 
     // --- 9. 核心功能：按时间排序 ---
-    function 按时间排序() {
+    function 按时间升序排序() {
         const 面板ID = 状态.大栏目 === 'PUBLISH' ? 'rc-tabs-0-panel-PUBLISH' : 'rc-tabs-0-panel-COLLECT';
         const 面板 = document.getElementById(面板ID) || document.body;
 
@@ -592,18 +584,7 @@
 
         // 保存原始顺序
         状态.原始顺序 = 所有项目.slice();
-        状态.排序模式 = true;
-
-        // 保存排序状态到本地存储（按栏目保存）
-        try {
-            const sortState = JSON.parse(localStorage.getItem('yd_sort_state') || '{}');
-            const key = `${状态.大栏目}-${状态.子栏目}`;
-            sortState[key] = true;
-            localStorage.setItem('yd_sort_state', JSON.stringify(sortState));
-            console.log(`保存排序状态: ${key} = true`);
-        } catch (e) {
-            console.error('保存排序状态失败:', e);
-        }
+        状态.排序模式 = 'newest';
 
         // 尝试从文章元素中提取时间信息（备用方案）
         let 项目时间映射 = [];
@@ -645,8 +626,68 @@
         显示提示('已按发布时间排序（最新在前）');
     }
 
+    function 按时间降序排序() {
+        const 面板ID = 状态.大栏目 === 'PUBLISH' ? 'rc-tabs-0-panel-PUBLISH' : 'rc-tabs-0-panel-COLLECT';
+        const 面板 = document.getElementById(面板ID) || document.body;
+
+        // 获取当前面板下的所有文章项目
+        let 所有项目 = [];
+        for (const sel of 选择器.内容项) {
+            所有项目 = Array.from(面板.querySelectorAll(sel));
+            if (所有项目.length > 0) break;
+        }
+
+        if (所有项目.length === 0) {
+            显示提示('未找到可排序的内容项', false);
+            return;
+        }
+
+        // 保存原始顺序
+        状态.原始顺序 = 所有项目.slice();
+        状态.排序模式 = 'oldest';
+
+        // 尝试从文章元素中提取时间信息（备用方案）
+        let 项目时间映射 = [];
+        所有项目.forEach((item, index) => {
+            let 时间字符串 = '';
+            
+            // 优先使用 API 保存的数据
+            if (状态.文章数据[index] && 状态.文章数据[index].createTime) {
+                时间字符串 = 状态.文章数据[index].createTime;
+            } else {
+                // 尝试从元素文本中提取时间（格式如 "2023-10-23 11:05:52"）
+                const 文本 = item.textContent;
+                const 时间匹配 = 文本.match(/(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/);
+                if (时间匹配) {
+                    时间字符串 = 时间匹配[1];
+                }
+            }
+            
+            项目时间映射.push({
+                element: item,
+                createTime: 时间字符串,
+                originalIndex: index
+            });
+        });
+
+        // 按创建时间升序排序（最旧的在前）
+        项目时间映射.sort((a, b) => {
+            if (!a.createTime) return 1;
+            if (!b.createTime) return -1;
+            return new Date(a.createTime).getTime() - new Date(b.createTime).getTime();
+        });
+
+        // 重新排列 DOM
+        const 父容器 = 所有项目[0].parentNode;
+        项目时间映射.forEach(item => {
+            父容器.appendChild(item.element);
+        });
+
+        显示提示('已按发布时间排序（最旧在前）');
+    }
+
     function 恢复原始顺序() {
-        if (!状态.排序模式 || 状态.原始顺序.length === 0) {
+        if (状态.原始顺序.length === 0) {
             显示提示('没有可恢复的顺序', false);
             return;
         }
@@ -658,20 +699,69 @@
             });
         }
 
-        状态.排序模式 = false;
-        
-        // 清除本地存储中的排序状态（按栏目清除）
+        状态.排序模式 = 'default';
+
+        显示提示('已恢复原始顺序');
+    }
+
+    function 循环切换排序() {
+        const cycleSortBtn = document.getElementById('yd-cycle-sort-btn');
+        let nextMode, nextButtonText;
+
+        switch (状态.排序模式) {
+            case 'newest':
+                nextMode = 'oldest';
+                nextButtonText = '时间越久排前';
+                break;
+            case 'oldest':
+                nextMode = 'default';
+                nextButtonText = '网页默认排序';
+                break;
+            case 'default':
+            default:
+                nextMode = 'newest';
+                nextButtonText = '时间越近排前';
+                break;
+        }
+
+        执行排序(nextMode);
+        更新按钮状态(nextButtonText);
+        保存排序状态到本地存储(nextMode);
+    }
+
+    function 执行排序(mode) {
+        switch (mode) {
+            case 'newest':
+                按时间升序排序();
+                break;
+            case 'oldest':
+                按时间降序排序();
+                break;
+            case 'default':
+            default:
+                恢复原始顺序();
+                break;
+        }
+    }
+
+    function 更新按钮状态(buttonText) {
+        const cycleSortBtn = document.getElementById('yd-cycle-sort-btn');
+        if (cycleSortBtn) {
+            cycleSortBtn.textContent = buttonText;
+            状态.当前排序按钮文本 = buttonText;
+        }
+    }
+
+    function 保存排序状态到本地存储(mode) {
         try {
             const sortState = JSON.parse(localStorage.getItem('yd_sort_state') || '{}');
             const key = `${状态.大栏目}-${状态.子栏目}`;
-            delete sortState[key];
+            sortState[key] = mode;
             localStorage.setItem('yd_sort_state', JSON.stringify(sortState));
-            console.log(`清除排序状态: ${key}`);
+            console.log(`保存排序状态: ${key} = ${mode}`);
         } catch (e) {
-            console.error('清除排序状态失败:', e);
+            console.error('保存排序状态失败:', e);
         }
-
-        显示提示('已恢复原始顺序');
     }
 
     // 检查并应用当前栏目的排序状态
@@ -679,25 +769,29 @@
         try {
             const sortState = JSON.parse(localStorage.getItem('yd_sort_state') || '{}');
             const key = `${状态.大栏目}-${状态.子栏目}`;
-            const isSorted = sortState[key] === true;
+            const savedMode = sortState[key] || 'newest'; // 默认是时间越近排前
             
-            console.log(`检查排序状态: ${key} = ${isSorted}`);
+            console.log(`检查排序状态: ${key} = ${savedMode}`);
             
-            // 更新按钮显示状态
-            const sortBtn = document.getElementById('yd-sort-btn');
-            const resetSortBtn = document.getElementById('yd-reset-sort-btn');
-            
-            if (isSorted) {
-                // 延迟执行排序，确保DOM已加载
-                setTimeout(() => {
-                    按时间排序();
-                    if (sortBtn) sortBtn.style.display = 'none';
-                    if (resetSortBtn) resetSortBtn.style.display = 'inline-block';
-                }, 500);
-            } else {
-                if (sortBtn) sortBtn.style.display = 'inline-block';
-                if (resetSortBtn) resetSortBtn.style.display = 'none';
+            let buttonText;
+            switch (savedMode) {
+                case 'newest':
+                    buttonText = '时间越近排前';
+                    break;
+                case 'oldest':
+                    buttonText = '时间越久排前';
+                    break;
+                case 'default':
+                    buttonText = '网页默认排序';
+                    break;
             }
+            
+            更新按钮状态(buttonText);
+            
+            // 延迟执行排序，确保DOM已加载
+            setTimeout(() => {
+                执行排序(savedMode);
+            }, 500);
         } catch (e) {
             console.error('检查排序状态失败:', e);
         }
@@ -707,7 +801,6 @@
     function 重置排序状态() {
         状态.文章数据 = [];
         状态.原始顺序 = [];
-        状态.排序模式 = false;
         
         // 检查并应用当前栏目的排序状态
         setTimeout(检查并应用排序状态, 1000);
