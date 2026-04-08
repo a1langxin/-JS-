@@ -490,9 +490,10 @@
         }
 
         let 所有项目 = [];
+        // 收集所有选择器的匹配项，避免只选择部分文章
         for (const sel of 选择器.内容项) {
             const 候选项目 = Array.from(面板.querySelectorAll(sel));
-            所有项目 = 候选项目.filter(item => {
+            const 过滤后项目 = 候选项目.filter(item => {
                 // 排除按钮元素
                 const isButtonElement = item.tagName === 'BUTTON';
                 const isInButtonContainer = item.closest('.btn___N0geJ') !== null;
@@ -506,8 +507,11 @@
                 
                 return !isButtonElement && !isInButtonContainer && !isSubButton && !isEmpty;
             });
-            if (所有项目.length > 0) break;
+            所有项目 = [...所有项目, ...过滤后项目];
         }
+        
+        // 去重，避免重复选择
+        所有项目 = Array.from(new Set(所有项目));
 
         if (所有项目.length === 0) {
             显示提示('未找到可搜索的内容项', false);
@@ -614,9 +618,10 @@
 
         // 获取当前面板下的所有文章项目
         let 所有项目 = [];
+        // 收集所有选择器的匹配项，避免只选择部分文章
         for (const sel of 选择器.内容项) {
             const 候选项目 = Array.from(面板.querySelectorAll(sel));
-            所有项目 = 候选项目.filter(item => {
+            const 过滤后项目 = 候选项目.filter(item => {
                 // 排除按钮元素
                 const isButtonElement = item.tagName === 'BUTTON';
                 const isInButtonContainer = item.closest('.btn___N0geJ') !== null;
@@ -630,8 +635,11 @@
                 
                 return !isButtonElement && !isInButtonContainer && !isSubButton && !isEmpty;
             });
-            if (所有项目.length > 0) break;
+            所有项目 = [...所有项目, ...过滤后项目];
         }
+        
+        // 去重，避免重复选择
+        所有项目 = Array.from(new Set(所有项目));
 
         if (所有项目.length === 0) {
             显示提示('未找到可排序的内容项', false);
