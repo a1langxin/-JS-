@@ -13,6 +13,7 @@
 
     // --- 1. 配置与常量 ---
     const 配置 = {
+        版本: '2.6',           // 脚本版本号，用于版本控制
         每页加载数量: 500,
         初始延时: 2000,       // 普通栏目切换等待
         回答栏目延时: 4000,   // 回答栏目特殊等待
@@ -68,6 +69,9 @@
     function 初始化() {
         console.log('影刀社区优化脚本 v2.6 启动...');
 
+        // 版本控制：检查并更新配置
+        检查版本();
+
         注入API拦截器();
         添加搜索框();
         设置全局事件监听();
@@ -82,6 +86,39 @@
         }, 1000);
 
         window.addEventListener('error', e => console.error('全局错误:', e.message));
+    }
+
+    // 版本控制：检查版本并更新配置
+    function 检查版本() {
+        try {
+            const storedVersion = localStorage.getItem('yd_script_version');
+            const currentVersion = 配置.版本;
+
+            // 如果版本不匹配，清除旧配置
+            if (storedVersion !== currentVersion) {
+                console.log(`版本更新: ${storedVersion || '无'} -> ${currentVersion}`);
+                localStorage.removeItem('yd_sort_state');
+                localStorage.setItem('yd_script_version', currentVersion);
+                console.log('已清除旧配置，应用新配置');
+            } else {
+                console.log(`当前版本: ${currentVersion}`);
+            }
+        } catch (e) {
+            console.error('版本检查失败:', e);
+        }
+    }
+
+    // 清除所有配置
+    function 清除所有配置() {
+        try {
+            localStorage.removeItem('yd_sort_state');
+            localStorage.removeItem('yd_script_version');
+            console.log('已清除所有配置');
+            显示提示('已清除所有配置');
+        } catch (e) {
+            console.error('清除配置失败:', e);
+            显示提示('清除配置失败', false);
+        }
     }
 
     // --- 4. 核心功能：API拦截 ---
@@ -447,6 +484,7 @@
                 <button id="yd-clear-btn" style="padding:8px 16px; background:#f0f0f0; border:1px solid #d9d9d9; border-radius:4px; cursor:pointer;">清除</button>
                 <button id="yd-sort-btn" style="padding:8px 16px; background:#52c41a; color:white; border:none; border-radius:4px; cursor:pointer;">按时间排序</button>
                 <button id="yd-reset-sort-btn" style="padding:8px 16px; background:#faad14; color:white; border:none; border-radius:4px; cursor:pointer; display:none;">取消排序</button>
+                <button id="yd-clear-config-btn" style="padding:8px 16px; background:#ff4d4f; color:white; border:none; border-radius:4px; cursor:pointer;">清除配置</button>
             </div>
         `;
         document.body.appendChild(div);
@@ -456,6 +494,7 @@
         const clearBtn = document.getElementById('yd-clear-btn');
         const sortBtn = document.getElementById('yd-sort-btn');
         const resetSortBtn = document.getElementById('yd-reset-sort-btn');
+        const clearConfigBtn = document.getElementById('yd-clear-config-btn');
 
         const handleSearch = () => 执行搜索(input.value);
 
@@ -474,6 +513,8 @@
             sortBtn.style.display = 'inline-block';
             resetSortBtn.style.display = 'none';
         };
+
+        clearConfigBtn.onclick = 清除所有配置;
     }
 
     function 执行搜索(关键词) {
