@@ -76,6 +76,25 @@
         setTimeout(() => {
             同步状态();
             开始自动加载();
+            
+            // 检查本地存储中的排序状态
+            setTimeout(() => {
+                try {
+                    const sortEnabled = localStorage.getItem('yd_sort_enabled') === 'true';
+                    if (sortEnabled) {
+                        console.log('检测到排序状态，自动执行排序');
+                        按时间排序();
+                        
+                        // 更新按钮显示状态
+                        const sortBtn = document.getElementById('yd-sort-btn');
+                        const resetSortBtn = document.getElementById('yd-reset-sort-btn');
+                        if (sortBtn) sortBtn.style.display = 'none';
+                        if (resetSortBtn) resetSortBtn.style.display = 'inline-block';
+                    }
+                } catch (e) {
+                    console.error('检查排序状态失败:', e);
+                }
+            }, 3000); // 延迟执行，确保页面已加载完成
         }, 1000);
 
         window.addEventListener('error', e => console.error('全局错误:', e.message));
@@ -591,6 +610,13 @@
         状态.原始顺序 = 所有项目.slice();
         状态.排序模式 = true;
 
+        // 保存排序状态到本地存储
+        try {
+            localStorage.setItem('yd_sort_enabled', 'true');
+        } catch (e) {
+            console.error('保存排序状态失败:', e);
+        }
+
         // 尝试从文章元素中提取时间信息（备用方案）
         let 项目时间映射 = [];
         所有项目.forEach((item, index) => {
@@ -645,6 +671,14 @@
         }
 
         状态.排序模式 = false;
+        
+        // 清除本地存储中的排序状态
+        try {
+            localStorage.removeItem('yd_sort_enabled');
+        } catch (e) {
+            console.error('清除排序状态失败:', e);
+        }
+
         显示提示('已恢复原始顺序');
     }
 
