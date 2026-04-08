@@ -14,7 +14,6 @@
     // --- 1. 配置与常量 ---
     const 配置 = {
         版本: '2.6',           // 脚本版本号，用于版本控制
-        内部版本: '2.6.1',     // 内部版本号，用于检测代码变更
         每页加载数量: 500,
         初始延时: 2000,       // 普通栏目切换等待
         回答栏目延时: 4000,   // 回答栏目特殊等待
@@ -89,23 +88,49 @@
         window.addEventListener('error', e => console.error('全局错误:', e.message));
     }
 
+    // 生成哈希值
+    function 生成哈希(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return hash.toString(16);
+    }
+
+    // 生成脚本关键部分的哈希值
+    function 生成脚本哈希() {
+        // 提取脚本的关键部分，用于生成哈希值
+        const 关键部分 = `
+            ${配置.版本}
+            ${JSON.stringify(选择器)}
+            ${执行搜索.toString()}
+            ${按时间排序.toString()}
+            ${恢复原始顺序.toString()}
+        `;
+        return 生成哈希(关键部分);
+    }
+
     // 版本控制：检查版本并更新配置
     function 检查版本() {
         try {
             const storedVersion = localStorage.getItem('yd_script_version');
-            const storedInternalVersion = localStorage.getItem('yd_script_internal_version');
+            const storedHash = localStorage.getItem('yd_script_hash');
             const currentVersion = 配置.版本;
-            const currentInternalVersion = 配置.内部版本;
+            const currentHash = 生成脚本哈希();
 
-            // 如果版本或内部版本不匹配，清除旧配置
-            if (storedVersion !== currentVersion || storedInternalVersion !== currentInternalVersion) {
-                console.log(`版本更新: ${storedVersion || '无'} (内部: ${storedInternalVersion || '无'}) -> ${currentVersion} (内部: ${currentInternalVersion})`);
+            // 如果版本或哈希值不匹配，清除旧配置
+            if (storedVersion !== currentVersion || storedHash !== currentHash) {
+                console.log(`版本更新: ${storedVersion || '无'} -> ${currentVersion}`);
+                console.log(`哈希更新: ${storedHash || '无'} -> ${currentHash}`);
                 localStorage.removeItem('yd_sort_state');
                 localStorage.setItem('yd_script_version', currentVersion);
-                localStorage.setItem('yd_script_internal_version', currentInternalVersion);
+                localStorage.setItem('yd_script_hash', currentHash);
                 console.log('已清除旧配置，应用新配置');
             } else {
-                console.log(`当前版本: ${currentVersion} (内部: ${currentInternalVersion})`);
+                console.log(`当前版本: ${currentVersion}`);
+                console.log(`当前哈希: ${currentHash}`);
             }
         } catch (e) {
             console.error('版本检查失败:', e);
@@ -117,7 +142,7 @@
         try {
             localStorage.removeItem('yd_sort_state');
             localStorage.removeItem('yd_script_version');
-            localStorage.removeItem('yd_script_internal_version');
+            localStorage.removeItem('yd_script_hash');
             console.log('已清除所有配置');
             显示提示('已清除所有配置');
         } catch (e) {
