@@ -487,8 +487,10 @@
         for (const sel of 选择器.内容项) {
             const 候选项目 = Array.from(面板.querySelectorAll(sel));
             所有项目 = 候选项目.filter(item => {
-                const isButton = item.tagName === 'BUTTON' || item.closest('button') || item.closest('.btn___N0geJ');
-                return !isButton;
+                // 排除按钮元素及其父容器
+                const isButton = item.tagName === 'BUTTON' || item.closest('button');
+                const isButtonContainer = item.classList.contains('btn___N0geJ') || item.closest('.btn___N0geJ');
+                return !isButton && !isButtonContainer;
             });
             if (所有项目.length > 0) break;
         }
@@ -587,8 +589,10 @@
         for (const sel of 选择器.内容项) {
             const 候选项目 = Array.from(面板.querySelectorAll(sel));
             所有项目 = 候选项目.filter(item => {
-                const isButton = item.tagName === 'BUTTON' || item.closest('button') || item.closest('.btn___N0geJ');
-                return !isButton;
+                // 排除按钮元素及其父容器
+                const isButton = item.tagName === 'BUTTON' || item.closest('button');
+                const isButtonContainer = item.classList.contains('btn___N0geJ') || item.closest('.btn___N0geJ');
+                return !isButton && !isButtonContainer;
             });
             if (所有项目.length > 0) break;
         }
