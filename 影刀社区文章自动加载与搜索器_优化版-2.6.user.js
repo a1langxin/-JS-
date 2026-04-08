@@ -493,10 +493,18 @@
         for (const sel of 选择器.内容项) {
             const 候选项目 = Array.from(面板.querySelectorAll(sel));
             所有项目 = 候选项目.filter(item => {
-                // 只排除明确的按钮元素
+                // 排除按钮元素
                 const isButtonElement = item.tagName === 'BUTTON';
                 const isInButtonContainer = item.closest('.btn___N0geJ') !== null;
-                return !isButtonElement && !isInButtonContainer;
+                
+                // 排除子栏目按钮（可能是链接）
+                const text = item.textContent || '';
+                const isSubButton = text.includes('提问') || text.includes('回答') || text.includes('文章') || text.includes('问答');
+                
+                // 排除空内容的元素
+                const isEmpty = text.trim() === '';
+                
+                return !isButtonElement && !isInButtonContainer && !isSubButton && !isEmpty;
             });
             if (所有项目.length > 0) break;
         }
@@ -601,10 +609,18 @@
         for (const sel of 选择器.内容项) {
             const 候选项目 = Array.from(面板.querySelectorAll(sel));
             所有项目 = 候选项目.filter(item => {
-                // 只排除明确的按钮元素
+                // 排除按钮元素
                 const isButtonElement = item.tagName === 'BUTTON';
                 const isInButtonContainer = item.closest('.btn___N0geJ') !== null;
-                return !isButtonElement && !isInButtonContainer;
+                
+                // 排除子栏目按钮（可能是链接）
+                const text = item.textContent || '';
+                const isSubButton = text.includes('提问') || text.includes('回答') || text.includes('文章') || text.includes('问答');
+                
+                // 排除空内容的元素
+                const isEmpty = text.trim() === '';
+                
+                return !isButtonElement && !isInButtonContainer && !isSubButton && !isEmpty;
             });
             if (所有项目.length > 0) break;
         }
