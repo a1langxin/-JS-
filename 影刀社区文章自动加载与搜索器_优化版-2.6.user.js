@@ -514,7 +514,12 @@
                 <button id="yd-clear-btn" style="padding:8px 16px; background:#f0f0f0; border:1px solid #d9d9d9; border-radius:4px; cursor:pointer;">清除</button>
                 <button id="yd-sort-btn" style="padding:8px 16px; background:#52c41a; color:white; border:none; border-radius:4px; cursor:pointer;">按时间排序</button>
                 <button id="yd-reset-sort-btn" style="padding:8px 16px; background:#faad14; color:white; border:none; border-radius:4px; cursor:pointer; display:none;">取消排序</button>
-                <button id="yd-clear-config-btn" style="padding:8px 16px; background:#ff4d4f; color:white; border:none; border-radius:4px; cursor:pointer;">清除配置</button>
+                <div style="position:relative;">
+                    <button id="yd-more-btn" style="padding:8px 16px; background:#f0f0f0; border:1px solid #d9d9d9; border-radius:4px; cursor:pointer;">更多</button>
+                    <div id="yd-more-menu" style="position:absolute; top:100%; right:0; margin-top:5px; background:white; border:1px solid #d9d9d9; border-radius:4px; box-shadow:0 2px 10px rgba(0,0,0,0.1); display:none; z-index:10000;">
+                        <button id="yd-clear-config-btn" style="display:block; width:100%; padding:8px 16px; text-align:left; background:none; border:none; cursor:pointer; border-bottom:1px solid #f0f0f0;">清除配置</button>
+                    </div>
+                </div>
             </div>
         `;
         document.body.appendChild(div);
@@ -524,6 +529,8 @@
         const clearBtn = document.getElementById('yd-clear-btn');
         const sortBtn = document.getElementById('yd-sort-btn');
         const resetSortBtn = document.getElementById('yd-reset-sort-btn');
+        const moreBtn = document.getElementById('yd-more-btn');
+        const moreMenu = document.getElementById('yd-more-menu');
         const clearConfigBtn = document.getElementById('yd-clear-config-btn');
 
         const handleSearch = () => 执行搜索(input.value);
@@ -544,7 +551,22 @@
             resetSortBtn.style.display = 'none';
         };
 
-        clearConfigBtn.onclick = 清除所有配置;
+        // 更多菜单切换
+        moreBtn.onclick = () => {
+            moreMenu.style.display = moreMenu.style.display === 'none' ? 'block' : 'none';
+        };
+
+        // 点击其他地方关闭菜单
+        document.addEventListener('click', (e) => {
+            if (!moreBtn.contains(e.target) && !moreMenu.contains(e.target)) {
+                moreMenu.style.display = 'none';
+            }
+        });
+
+        clearConfigBtn.onclick = () => {
+            清除所有配置();
+            moreMenu.style.display = 'none';
+        };
     }
 
     function 执行搜索(关键词) {
