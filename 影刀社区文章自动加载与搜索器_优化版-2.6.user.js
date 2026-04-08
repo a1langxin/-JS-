@@ -76,7 +76,7 @@
             开始自动加载();
             
             // 检查本地存储中的排序状态
-            setTimeout(检查并应用排序状态, 5000); // 延迟执行，确保页面已加载完成
+            setTimeout(检查并应用排序状态, 1000);
         }, 1000);
 
         window.addEventListener('error', e => console.error('全局错误:', e.message));
@@ -475,12 +475,25 @@
         let 所有项目 = [];
         for (const sel of 选择器.内容项) {
             所有项目 = Array.from(面板.querySelectorAll(sel));
-            // 过滤掉可能的按钮元素，只保留内容项
+            // 严格过滤掉所有可能的按钮元素，只保留内容项
             所有项目 = 所有项目.filter(item => {
                 const tagName = item.tagName.toLowerCase();
-                return tagName !== 'button' && !item.closest('button') && 
-                       !item.classList.contains('btn___N0geJ') && 
-                       !item.closest('[class*="btn"]');
+                // 检查是否是按钮相关元素
+                if (tagName === 'button') return false;
+                if (item.closest('button')) return false;
+                if (item.classList.contains('btn___N0geJ')) return false;
+                if (item.closest('[class*="btn"]')) return false;
+                if (item.closest('[class*="button"]')) return false;
+                // 检查元素文本是否是子栏目按钮文本
+                const text = item.textContent.trim();
+                if (['提问', '回答', '文章', '问答'].includes(text)) return false;
+                // 检查父容器是否是按钮组
+                if (item.closest('[class*="tab"]')) return false;
+                // 检查是否有按钮相关的属性
+                if (item.getAttribute('role') === 'button') return false;
+                if (item.getAttribute('type') === 'button') return false;
+                
+                return true;
             });
             if (所有项目.length > 0) break;
         }
@@ -578,12 +591,25 @@
         let 所有项目 = [];
         for (const sel of 选择器.内容项) {
             所有项目 = Array.from(面板.querySelectorAll(sel));
-            // 过滤掉可能的按钮元素，只保留内容项
+            // 严格过滤掉所有可能的按钮元素，只保留内容项
             所有项目 = 所有项目.filter(item => {
                 const tagName = item.tagName.toLowerCase();
-                return tagName !== 'button' && !item.closest('button') && 
-                       !item.classList.contains('btn___N0geJ') && 
-                       !item.closest('[class*="btn"]');
+                // 检查是否是按钮相关元素
+                if (tagName === 'button') return false;
+                if (item.closest('button')) return false;
+                if (item.classList.contains('btn___N0geJ')) return false;
+                if (item.closest('[class*="btn"]')) return false;
+                if (item.closest('[class*="button"]')) return false;
+                // 检查元素文本是否是子栏目按钮文本
+                const text = item.textContent.trim();
+                if (['提问', '回答', '文章', '问答'].includes(text)) return false;
+                // 检查父容器是否是按钮组
+                if (item.closest('[class*="tab"]')) return false;
+                // 检查是否有按钮相关的属性
+                if (item.getAttribute('role') === 'button') return false;
+                if (item.getAttribute('type') === 'button') return false;
+                
+                return true;
             });
             if (所有项目.length > 0) break;
         }
@@ -645,12 +671,25 @@
         let 所有项目 = [];
         for (const sel of 选择器.内容项) {
             所有项目 = Array.from(面板.querySelectorAll(sel));
-            // 过滤掉可能的按钮元素，只保留内容项
+            // 严格过滤掉所有可能的按钮元素，只保留内容项
             所有项目 = 所有项目.filter(item => {
                 const tagName = item.tagName.toLowerCase();
-                return tagName !== 'button' && !item.closest('button') && 
-                       !item.classList.contains('btn___N0geJ') && 
-                       !item.closest('[class*="btn"]');
+                // 检查是否是按钮相关元素
+                if (tagName === 'button') return false;
+                if (item.closest('button')) return false;
+                if (item.classList.contains('btn___N0geJ')) return false;
+                if (item.closest('[class*="btn"]')) return false;
+                if (item.closest('[class*="button"]')) return false;
+                // 检查元素文本是否是子栏目按钮文本
+                const text = item.textContent.trim();
+                if (['提问', '回答', '文章', '问答'].includes(text)) return false;
+                // 检查父容器是否是按钮组
+                if (item.closest('[class*="tab"]')) return false;
+                // 检查是否有按钮相关的属性
+                if (item.getAttribute('role') === 'button') return false;
+                if (item.getAttribute('type') === 'button') return false;
+                
+                return true;
             });
             if (所有项目.length > 0) break;
         }
@@ -789,6 +828,32 @@
         }
     }
 
+    // 智能等待内容加载完成后再执行排序
+    function 等待加载完成后排序(mode) {
+        let 检查次数 = 0;
+        const 最大检查次数 = 60; // 最多检查60次，间隔500ms，总共30秒
+        
+        function 检查是否加载完成() {
+            检查次数++;
+            console.log(`检查内容加载状态 (${检查次数}/${最大检查次数}): 已加载=${状态.已加载数量}, 总数=${状态.总数量}`);
+            
+            // 判断是否加载完成：已加载数量 >= 总数量 或者 检查次数超过最大值
+            if ((状态.总数量 > 0 && 状态.已加载数量 >= 状态.总数量) || 检查次数 >= 最大检查次数) {
+                if (检查次数 >= 最大检查次数) {
+                    console.log('达到最大检查次数，开始执行排序');
+                } else {
+                    console.log('内容已全部加载，开始执行排序');
+                }
+                执行排序(mode);
+            } else {
+                // 继续等待
+                setTimeout(检查是否加载完成, 500);
+            }
+        }
+        
+        检查是否加载完成();
+    }
+
     // 检查并应用当前栏目的排序状态
     function 检查并应用排序状态() {
         try {
@@ -815,10 +880,8 @@
             
             // 只有在需要排序时才执行排序操作
             if (savedMode === 'newest' || savedMode === 'oldest') {
-                // 延迟执行排序，确保DOM已加载并且内容完整
-                setTimeout(() => {
-                    执行排序(savedMode);
-                }, 3000);
+                // 智能等待内容加载完成后再排序
+                等待加载完成后排序(savedMode);
             } else {
                 状态.排序模式 = 'default';
             }
@@ -832,8 +895,8 @@
         状态.文章数据 = [];
         状态.原始顺序 = [];
         
-        // 检查并应用当前栏目的排序状态，延迟更久确保内容加载完成
-        setTimeout(检查并应用排序状态, 4000);
+        // 检查并应用当前栏目的排序状态，使用智能等待机制
+        setTimeout(检查并应用排序状态, 1000);
     }
 
     // --- 8. 事件监听优化 ---
