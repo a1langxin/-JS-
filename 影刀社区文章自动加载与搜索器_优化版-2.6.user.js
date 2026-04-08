@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         影刀社区文章自动加载与搜索器和排序3.0-正式版
+// @name         影刀社区文章自动加载与搜索器和排序7.0
 // @namespace    http://tampermonkey.net/
 // @version      2.6
 // @description  优化影刀社区页面，支持大量文章自动加载（每次500条）和搜索功能，精简代码，提升性能，修复栏目识别问题，修复收藏栏目加载数量(支持Fetch和XHR)
@@ -485,7 +485,11 @@
 
         let 所有项目 = [];
         for (const sel of 选择器.内容项) {
-            所有项目 = Array.from(面板.querySelectorAll(sel));
+            const 候选项目 = Array.from(面板.querySelectorAll(sel));
+            所有项目 = 候选项目.filter(item => {
+                const isButton = item.tagName === 'BUTTON' || item.closest('button') || item.closest('.btn___N0geJ');
+                return !isButton;
+            });
             if (所有项目.length > 0) break;
         }
 
@@ -574,14 +578,18 @@
     }
 
     // --- 9. 核心功能：按时间排序 ---
-    function 按时间排序() {
+    function 按时间排序(isAutoRestore = false) {
         const 面板ID = 状态.大栏目 === 'PUBLISH' ? 'rc-tabs-0-panel-PUBLISH' : 'rc-tabs-0-panel-COLLECT';
         const 面板 = document.getElementById(面板ID) || document.body;
 
         // 获取当前面板下的所有文章项目
         let 所有项目 = [];
         for (const sel of 选择器.内容项) {
-            所有项目 = Array.from(面板.querySelectorAll(sel));
+            const 候选项目 = Array.from(面板.querySelectorAll(sel));
+            所有项目 = 候选项目.filter(item => {
+                const isButton = item.tagName === 'BUTTON' || item.closest('button') || item.closest('.btn___N0geJ');
+                return !isButton;
+            });
             if (所有项目.length > 0) break;
         }
 
@@ -590,19 +598,28 @@
             return;
         }
 
-        // 保存原始顺序
-        状态.原始顺序 = 所有项目.slice();
-        状态.排序模式 = true;
+        // 只在用户主动点击时保存原始顺序和状态
+        if (!isAutoRestore) {
+            // 保存原始顺序
+            状态.原始顺序 = 所有项目.slice();
+            状态.排序模式 = true;
 
-        // 保存排序状态到本地存储（按栏目保存）
-        try {
-            const sortState = JSON.parse(localStorage.getItem('yd_sort_state') || '{}');
-            const key = `${状态.大栏目}-${状态.子栏目}`;
-            sortState[key] = true;
-            localStorage.setItem('yd_sort_state', JSON.stringify(sortState));
-            console.log(`保存排序状态: ${key} = true`);
-        } catch (e) {
-            console.error('保存排序状态失败:', e);
+            // 保存排序状态到本地存储（按栏目保存）
+            try {
+                const sortState = JSON.parse(localStorage.getItem('yd_sort_state') || '{}');
+                const key = `${状态.大栏目}-${状态.子栏目}`;
+                sortState[key] = true;
+                localStorage.setItem('yd_sort_state', JSON.stringify(sortState));
+                console.log(`保存排序状态: ${key} = true`);
+            } catch (e) {
+                console.error('保存排序状态失败:', e);
+            }
+        } else {
+            // 自动恢复时，先保存当前顺序作为原始顺序
+            if (状态.原始顺序.length === 0) {
+                状态.原始顺序 = 所有项目.slice();
+            }
+            状态.排序模式 = true;
         }
 
         // 尝试从文章元素中提取时间信息（备用方案）
@@ -642,7 +659,9 @@
             父容器.appendChild(item.element);
         });
 
-        显示提示('已按发布时间排序（最新在前）');
+        if (!isAutoRestore) {
+            显示提示('已按发布时间排序（最新在前）');
+        }
     }
 
     function 恢复原始顺序() {
@@ -688,11 +707,11 @@
             const resetSortBtn = document.getElementById('yd-reset-sort-btn');
 
             if (isSorted) {
-                // 延迟执行排序，确保DOM已加载
+                if (sortBtn) sortBtn.style.display = 'none';
+                if (resetSortBtn) resetSortBtn.style.display = 'inline-block';
+                // 延迟执行排序，确保DOM已加载，使用自动恢复模式
                 setTimeout(() => {
-                    按时间排序();
-                    if (sortBtn) sortBtn.style.display = 'none';
-                    if (resetSortBtn) resetSortBtn.style.display = 'inline-block';
+                    按时间排序(true);
                 }, 500);
             } else {
                 if (sortBtn) sortBtn.style.display = 'inline-block';
