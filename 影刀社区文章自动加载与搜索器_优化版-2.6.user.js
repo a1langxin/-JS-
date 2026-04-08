@@ -25,15 +25,12 @@
         // 页面元素选择器
         查看更多按钮: [
             "//span[normalize-space(text())='查看更多']",
-            ".rc-tabs-tabpane-active span:contains('查看更多')",
-            "span" // 兜底
+            ".rc-tabs-tabpane-active span:contains('查看更多')"
         ],
         内容项: [
             '.list___18bDQ > div',
             '.list_item___nmNeS',
-            '.qa-item, .article-item, .answer-item',
-            '[class*="item"]',
-            'a[href*="/community/"]'
+            '.qa-item, .article-item, .answer-item'
         ],
         // 严格匹配的按钮XPath
         按钮: {
@@ -79,7 +76,7 @@
             开始自动加载();
             
             // 检查本地存储中的排序状态
-            setTimeout(检查并应用排序状态, 3000); // 延迟执行，确保页面已加载完成
+            setTimeout(检查并应用排序状态, 5000); // 延迟执行，确保页面已加载完成
         }, 1000);
 
         window.addEventListener('error', e => console.error('全局错误:', e.message));
@@ -478,6 +475,13 @@
         let 所有项目 = [];
         for (const sel of 选择器.内容项) {
             所有项目 = Array.from(面板.querySelectorAll(sel));
+            // 过滤掉可能的按钮元素，只保留内容项
+            所有项目 = 所有项目.filter(item => {
+                const tagName = item.tagName.toLowerCase();
+                return tagName !== 'button' && !item.closest('button') && 
+                       !item.classList.contains('btn___N0geJ') && 
+                       !item.closest('[class*="btn"]');
+            });
             if (所有项目.length > 0) break;
         }
 
@@ -574,6 +578,13 @@
         let 所有项目 = [];
         for (const sel of 选择器.内容项) {
             所有项目 = Array.from(面板.querySelectorAll(sel));
+            // 过滤掉可能的按钮元素，只保留内容项
+            所有项目 = 所有项目.filter(item => {
+                const tagName = item.tagName.toLowerCase();
+                return tagName !== 'button' && !item.closest('button') && 
+                       !item.classList.contains('btn___N0geJ') && 
+                       !item.closest('[class*="btn"]');
+            });
             if (所有项目.length > 0) break;
         }
 
@@ -634,6 +645,13 @@
         let 所有项目 = [];
         for (const sel of 选择器.内容项) {
             所有项目 = Array.from(面板.querySelectorAll(sel));
+            // 过滤掉可能的按钮元素，只保留内容项
+            所有项目 = 所有项目.filter(item => {
+                const tagName = item.tagName.toLowerCase();
+                return tagName !== 'button' && !item.closest('button') && 
+                       !item.classList.contains('btn___N0geJ') && 
+                       !item.closest('[class*="btn"]');
+            });
             if (所有项目.length > 0) break;
         }
 
@@ -797,10 +815,10 @@
             
             // 只有在需要排序时才执行排序操作
             if (savedMode === 'newest' || savedMode === 'oldest') {
-                // 延迟执行排序，确保DOM已加载
+                // 延迟执行排序，确保DOM已加载并且内容完整
                 setTimeout(() => {
                     执行排序(savedMode);
-                }, 500);
+                }, 3000);
             } else {
                 状态.排序模式 = 'default';
             }
@@ -814,8 +832,8 @@
         状态.文章数据 = [];
         状态.原始顺序 = [];
         
-        // 检查并应用当前栏目的排序状态
-        setTimeout(检查并应用排序状态, 1000);
+        // 检查并应用当前栏目的排序状态，延迟更久确保内容加载完成
+        setTimeout(检查并应用排序状态, 4000);
     }
 
     // --- 8. 事件监听优化 ---
