@@ -481,14 +481,22 @@
         清除高亮();
 
         const 面板ID = 状态.大栏目 === 'PUBLISH' ? 'rc-tabs-0-panel-PUBLISH' : 'rc-tabs-0-panel-COLLECT';
-        const 面板 = document.getElementById(面板ID) || document.body;
+        const 面板 = document.getElementById(面板ID);
+        
+        // 如果找不到面板，直接退出
+        if (!面板) {
+            显示提示('未找到内容面板', false);
+            return;
+        }
 
         let 所有项目 = [];
         for (const sel of 选择器.内容项) {
             const 候选项目 = Array.from(面板.querySelectorAll(sel));
             所有项目 = 候选项目.filter(item => {
                 const isButton = item.tagName === 'BUTTON' || item.closest('button') || item.closest('.btn___N0geJ');
-                return !isButton;
+                // 进一步确保不是子栏目按钮
+                const isSubButton = item.textContent.includes('提问') || item.textContent.includes('回答') || item.textContent.includes('文章') || item.textContent.includes('问答');
+                return !isButton && !isSubButton;
             });
             if (所有项目.length > 0) break;
         }
@@ -580,7 +588,13 @@
     // --- 9. 核心功能：按时间排序 ---
     function 按时间排序(isAutoRestore = false) {
         const 面板ID = 状态.大栏目 === 'PUBLISH' ? 'rc-tabs-0-panel-PUBLISH' : 'rc-tabs-0-panel-COLLECT';
-        const 面板 = document.getElementById(面板ID) || document.body;
+        const 面板 = document.getElementById(面板ID);
+        
+        // 如果找不到面板，直接退出
+        if (!面板) {
+            显示提示('未找到内容面板', false);
+            return;
+        }
 
         // 获取当前面板下的所有文章项目
         let 所有项目 = [];
@@ -588,7 +602,9 @@
             const 候选项目 = Array.from(面板.querySelectorAll(sel));
             所有项目 = 候选项目.filter(item => {
                 const isButton = item.tagName === 'BUTTON' || item.closest('button') || item.closest('.btn___N0geJ');
-                return !isButton;
+                // 进一步确保不是子栏目按钮
+                const isSubButton = item.textContent.includes('提问') || item.textContent.includes('回答') || item.textContent.includes('文章') || item.textContent.includes('问答');
+                return !isButton && !isSubButton;
             });
             if (所有项目.length > 0) break;
         }
