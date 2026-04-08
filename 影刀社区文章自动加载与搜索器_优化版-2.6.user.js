@@ -58,7 +58,10 @@
         正在加载: false,
         加载定时器: null,
         重试计数: 0,
-        手动切换: false       // 标记是否刚进行了手动切换
+        手动切换: false,      // 标记是否刚进行了手动切换
+        文章数据: [],          // 保存文章数据，包含 createTime 和原始顺序
+        原始顺序: [],          // 保存原始 DOM 顺序
+        排序模式: false        // 是否处于排序模式
     };
 
     // --- 3. 初始化 ---
@@ -90,6 +93,36 @@
 
         function 是目标API(url) {
             return typeof url === 'string' && 目标APIs.some(api => url.includes(api));
+        }
+
+        function 处理响应数据(responseData) {
+            try {
+                const data = typeof responseData === 'string' ? JSON.parse(responseData) : responseData;
+                let 文章列表 = [];
+
+                // 尝试从响应中获取文章列表
+                if (data.data && data.data.list) {
+                    文章列表 = data.data.list;
+                } else if (data.data && Array.isArray(data.data)) {
+                    文章列表 = data.data;
+                } else if (data.list) {
+                    文章列表 = data.list;
+                } else if (Array.isArray(data)) {
+                    文章列表 = data;
+                }
+
+                if (文章列表.length > 0) {
+                    // 保存文章数据，包含 createTime
+                    状态.文章数据 = 文章列表.map((item, index) => ({
+                        createTime: item.createTime || item.create_time || '',
+                        index: index,
+                        data: item
+                    }));
+                    console.log(`[API响应] 已保存 ${文章列表.length} 条文章数据`);
+                }
+            } catch (e) {
+                console.error('[API响应] 处理响应数据出错:', e);
+            }
         }
 
         function 获取修改后的URL(url) {
@@ -157,19 +190,16 @@
             window.fetch = function (...args) {
                 let url = args[0];
                 let options = args[1] || {};
+                let targetUrl = url instanceof Request ? url.url : url;
+                let isTarget = 是目标API(targetUrl);
 
                 if (url instanceof Request) {
                     // 简单处理 Request 对象：只尝试修改 URL
-                    // 深度修改 Request 对象比较复杂，且通常不必要
-                    if (是目标API(url.url)) {
-                        console.log(`[Fetch拦截] 捕获 Request 对象: ${url.url}`);
-                        // 注意：这里很难直接修改 Request 对象内部的 URL，
-                        // 除非创建一个新的 Request。
-                        // 如果网站用的是 new Request(...)，这里可能需要更复杂的逻辑。
-                        // 但大多数情况下，简单的 URL 字符串替换就够了。
+                    if (isTarget) {
+                        console.log(`[Fetch拦截] 捕获 Request 对象: ${targetUrl}`);
                     }
-                } else if (是目标API(url)) {
-                    console.log(`[Fetch拦截] 捕获请求: ${url}`);
+                } else if (isTarget) {
+                    console.log(`[Fetch拦截] 捕获请求: ${targetUrl}`);
 
                     // 修改 URL
                     const newUrl = 获取修改后的URL(url);
@@ -189,7 +219,16 @@
                     }
                 }
 
-                return 原始Fetch.apply(this, args);
+                return 原始Fetch.apply(this, args).then(response => {
+                    if (isTarget) {
+                        // 克隆响应以便读取和处理
+                        const clonedResponse = response.clone();
+                        clonedResponse.text().then(text => {
+                            处理响应数据(text);
+                        }).catch(e => console.error('[Fetch响应] 读取响应失败:', e));
+                    }
+                    return response;
+                });
             };
             console.log('Fetch 拦截器注入成功');
         } catch (e) {
@@ -203,7 +242,8 @@
 
             XMLHttpRequest.prototype.open = function (method, url, ...rest) {
                 this._url = url; // 保存 URL 供 send 使用
-                if (是目标API(url)) {
+                this._isTarget = 是目标API(url);
+                if (this._isTarget) {
                     console.log(`[XHR拦截] open: ${url}`);
                     const newUrl = 获取修改后的URL(url);
                     if (newUrl !== url) {
@@ -215,7 +255,7 @@
             };
 
             XMLHttpRequest.prototype.send = function (body) {
-                if (this._url && 是目标API(this._url) && body) {
+                if (this._isTarget && body) {
                     console.log(`[XHR拦截] send body:`, body);
                     const newBody = 获取修改后的Body(body);
                     if (newBody !== body) {
@@ -223,6 +263,23 @@
                         console.log(`[XHR拦截] Body已修改`);
                     }
                 }
+
+                // 监听响应
+                const self = this;
+                const originalOnReadyStateChange = this.onreadystatechange;
+                this.onreadystatechange = function () {
+                    if (self.readyState === 4 && self._isTarget) {
+                        try {
+                            处理响应数据(self.responseText);
+                        } catch (e) {
+                            console.error('[XHR响应] 处理响应失败:', e);
+                        }
+                    }
+                    if (originalOnReadyStateChange) {
+                        originalOnReadyStateChange.apply(this, arguments);
+                    }
+                };
+
                 return 原始Send.call(this, body);
             };
             console.log('XHR 拦截器注入成功');
@@ -381,10 +438,12 @@
     function 添加搜索框() {
         const div = document.createElement('div');
         div.innerHTML = `
-            <div style="position:fixed; top:10px; right:20px; z-index:9999; background:white; padding:10px; border-radius:6px; box-shadow:0 2px 10px rgba(0,0,0,0.1); display:flex; align-items:center;">
-                <input id="yd-search-input" type="text" placeholder="搜索内容..." style="padding:8px; border:1px solid #d9d9d9; border-radius:4px; width:200px; margin-right:8px;">
-                <button id="yd-search-btn" style="padding:8px 16px; background:#1890ff; color:white; border:none; border-radius:4px; cursor:pointer; margin-right:8px;">搜索</button>
+            <div style="position:fixed; top:10px; right:20px; z-index:9999; background:white; padding:10px; border-radius:6px; box-shadow:0 2px 10px rgba(0,0,0,0.1); display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
+                <input id="yd-search-input" type="text" placeholder="搜索内容..." style="padding:8px; border:1px solid #d9d9d9; border-radius:4px; width:200px;">
+                <button id="yd-search-btn" style="padding:8px 16px; background:#1890ff; color:white; border:none; border-radius:4px; cursor:pointer;">搜索</button>
                 <button id="yd-clear-btn" style="padding:8px 16px; background:#f0f0f0; border:1px solid #d9d9d9; border-radius:4px; cursor:pointer;">清除</button>
+                <button id="yd-sort-btn" style="padding:8px 16px; background:#52c41a; color:white; border:none; border-radius:4px; cursor:pointer;">按时间排序</button>
+                <button id="yd-reset-sort-btn" style="padding:8px 16px; background:#faad14; color:white; border:none; border-radius:4px; cursor:pointer; display:none;">取消排序</button>
             </div>
         `;
         document.body.appendChild(div);
@@ -392,6 +451,8 @@
         const input = document.getElementById('yd-search-input');
         const searchBtn = document.getElementById('yd-search-btn');
         const clearBtn = document.getElementById('yd-clear-btn');
+        const sortBtn = document.getElementById('yd-sort-btn');
+        const resetSortBtn = document.getElementById('yd-reset-sort-btn');
 
         const handleSearch = () => 执行搜索(input.value);
 
@@ -399,6 +460,17 @@
         clearBtn.onclick = () => { input.value = ''; 执行搜索(''); };
         input.onkeypress = (e) => { if (e.key === 'Enter') handleSearch(); };
         input.oninput = () => { if (!input.value.trim()) 执行搜索(''); };
+        
+        sortBtn.onclick = () => {
+            按时间排序();
+            sortBtn.style.display = 'none';
+            resetSortBtn.style.display = 'inline-block';
+        };
+        resetSortBtn.onclick = () => {
+            恢复原始顺序();
+            sortBtn.style.display = 'inline-block';
+            resetSortBtn.style.display = 'none';
+        };
     }
 
     function 执行搜索(关键词) {
@@ -498,6 +570,97 @@
         }, 3000);
     }
 
+    // --- 9. 核心功能：按时间排序 ---
+    function 按时间排序() {
+        const 面板ID = 状态.大栏目 === 'PUBLISH' ? 'rc-tabs-0-panel-PUBLISH' : 'rc-tabs-0-panel-COLLECT';
+        const 面板 = document.getElementById(面板ID) || document.body;
+
+        // 获取当前面板下的所有文章项目
+        let 所有项目 = [];
+        for (const sel of 选择器.内容项) {
+            所有项目 = Array.from(面板.querySelectorAll(sel));
+            if (所有项目.length > 0) break;
+        }
+
+        if (所有项目.length === 0) {
+            显示提示('未找到可排序的内容项', false);
+            return;
+        }
+
+        // 保存原始顺序
+        状态.原始顺序 = 所有项目.slice();
+        状态.排序模式 = true;
+
+        // 尝试从文章元素中提取时间信息（备用方案）
+        let 项目时间映射 = [];
+        所有项目.forEach((item, index) => {
+            let 时间字符串 = '';
+            
+            // 优先使用 API 保存的数据
+            if (状态.文章数据[index] && 状态.文章数据[index].createTime) {
+                时间字符串 = 状态.文章数据[index].createTime;
+            } else {
+                // 尝试从元素文本中提取时间（格式如 "2023-10-23 11:05:52"）
+                const 文本 = item.textContent;
+                const 时间匹配 = 文本.match(/(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/);
+                if (时间匹配) {
+                    时间字符串 = 时间匹配[1];
+                }
+            }
+            
+            项目时间映射.push({
+                element: item,
+                createTime: 时间字符串,
+                originalIndex: index
+            });
+        });
+
+        // 按创建时间降序排序（最新的在前）
+        项目时间映射.sort((a, b) => {
+            if (!a.createTime) return 1;
+            if (!b.createTime) return -1;
+            return new Date(b.createTime).getTime() - new Date(a.createTime).getTime();
+        });
+
+        // 重新排列 DOM
+        const 父容器 = 所有项目[0].parentNode;
+        项目时间映射.forEach(item => {
+            父容器.appendChild(item.element);
+        });
+
+        显示提示('已按发布时间排序（最新在前）');
+    }
+
+    function 恢复原始顺序() {
+        if (!状态.排序模式 || 状态.原始顺序.length === 0) {
+            显示提示('没有可恢复的顺序', false);
+            return;
+        }
+
+        if (状态.原始顺序[0] && 状态.原始顺序[0].parentNode) {
+            const 父容器 = 状态.原始顺序[0].parentNode;
+            状态.原始顺序.forEach(item => {
+                父容器.appendChild(item);
+            });
+        }
+
+        状态.排序模式 = false;
+        显示提示('已恢复原始顺序');
+    }
+
+    // 在栏目切换时重置排序状态
+    function 重置排序状态() {
+        状态.文章数据 = [];
+        状态.原始顺序 = [];
+        状态.排序模式 = false;
+        
+        // 重置按钮显示
+        const sortBtn = document.getElementById('yd-sort-btn');
+        const resetSortBtn = document.getElementById('yd-reset-sort-btn');
+        if (sortBtn) sortBtn.style.display = 'inline-block';
+        if (resetSortBtn) resetSortBtn.style.display = 'none';
+    }
+
     // --- 8. 事件监听优化 ---
     function 设置全局事件监听() {
         document.addEventListener('click', (e) => {
@@ -514,6 +677,8 @@
                     console.log(`检测到大栏目切换: ${状态.大栏目}`);
                     // 重置子栏目为默认值
                     状态.子栏目 = 状态.大栏目 === 'PUBLISH' ? '提问' : '问答';
+                    // 重置排序状态
+                    重置排序状态();
                     return;
                 }
 
@@ -550,6 +715,9 @@
 
                     状态.手动切换 = true;
                     console.log(`状态更新(点击): [${状态.大栏目}-${状态.子栏目}] 总数: ${状态.总数量}`);
+                    
+                    // 重置排序状态
+                    重置排序状态();
 
                     const delay = text.includes('回答') ? 配置.回答栏目延时 : 配置.初始延时;
                     setTimeout(() => {
