@@ -688,7 +688,7 @@
 
     function 恢复原始顺序() {
         if (状态.原始顺序.length === 0) {
-            显示提示('没有可恢复的顺序', false);
+            状态.排序模式 = 'default';
             return;
         }
 
@@ -724,7 +724,14 @@
                 break;
         }
 
-        执行排序(nextMode);
+        // 执行排序
+        if (nextMode === 'default') {
+            // 如果切换到默认模式，尝试恢复原始顺序
+            恢复原始顺序();
+        } else {
+            执行排序(nextMode);
+        }
+        
         更新按钮状态(nextButtonText);
         保存排序状态到本地存储(nextMode);
     }
@@ -739,7 +746,7 @@
                 break;
             case 'default':
             default:
-                恢复原始顺序();
+                状态.排序模式 = 'default';
                 break;
         }
     }
@@ -788,10 +795,15 @@
             
             更新按钮状态(buttonText);
             
-            // 延迟执行排序，确保DOM已加载
-            setTimeout(() => {
-                执行排序(savedMode);
-            }, 500);
+            // 只有在需要排序时才执行排序操作
+            if (savedMode === 'newest' || savedMode === 'oldest') {
+                // 延迟执行排序，确保DOM已加载
+                setTimeout(() => {
+                    执行排序(savedMode);
+                }, 500);
+            } else {
+                状态.排序模式 = 'default';
+            }
         } catch (e) {
             console.error('检查排序状态失败:', e);
         }
