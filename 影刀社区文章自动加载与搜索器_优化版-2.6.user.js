@@ -532,6 +532,14 @@
             }
         });
 
+        // 确保所有非匹配项都被隐藏
+        所有项目.forEach(item => {
+            const 文本 = item.textContent.toLowerCase();
+            if (!文本.includes(关键词)) {
+                item.style.display = 'none';
+            }
+        });
+
         if (匹配数 > 0) {
             const 可见项 = 所有项目.find(i => i.style.display !== 'none');
             if (可见项) 可见项.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -659,16 +667,14 @@
         所有项目.forEach((item, index) => {
             let 时间字符串 = '';
 
-            // 优先使用 API 保存的数据
-            if (状态.文章数据[index] && 状态.文章数据[index].createTime) {
+            // 尝试从元素文本中提取时间（格式如 "2023-10-23 11:05:52"）
+            const 文本 = item.textContent;
+            const 时间匹配 = 文本.match(/(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/);
+            if (时间匹配) {
+                时间字符串 = 时间匹配[1];
+            } else if (状态.文章数据[index] && 状态.文章数据[index].createTime) {
+                // 其次使用 API 保存的数据
                 时间字符串 = 状态.文章数据[index].createTime;
-            } else {
-                // 尝试从元素文本中提取时间（格式如 "2023-10-23 11:05:52"）
-                const 文本 = item.textContent;
-                const 时间匹配 = 文本.match(/(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/);
-                if (时间匹配) {
-                    时间字符串 = 时间匹配[1];
-                }
             }
 
             项目时间映射.push({
@@ -680,6 +686,7 @@
 
         // 按创建时间降序排序（最新的在前）
         项目时间映射.sort((a, b) => {
+            if (!a.createTime && !b.createTime) return 0;
             if (!a.createTime) return 1;
             if (!b.createTime) return -1;
             return new Date(b.createTime).getTime() - new Date(a.createTime).getTime();
