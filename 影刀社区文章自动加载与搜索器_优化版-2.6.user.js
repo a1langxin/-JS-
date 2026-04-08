@@ -14,6 +14,7 @@
     // --- 1. 配置与常量 ---
     const 配置 = {
         版本: '2.6',           // 脚本版本号，用于版本控制
+        内部版本: '2.6.1',     // 内部版本号，用于检测代码变更
         每页加载数量: 500,
         初始延时: 2000,       // 普通栏目切换等待
         回答栏目延时: 4000,   // 回答栏目特殊等待
@@ -92,16 +93,19 @@
     function 检查版本() {
         try {
             const storedVersion = localStorage.getItem('yd_script_version');
+            const storedInternalVersion = localStorage.getItem('yd_script_internal_version');
             const currentVersion = 配置.版本;
+            const currentInternalVersion = 配置.内部版本;
 
-            // 如果版本不匹配，清除旧配置
-            if (storedVersion !== currentVersion) {
-                console.log(`版本更新: ${storedVersion || '无'} -> ${currentVersion}`);
+            // 如果版本或内部版本不匹配，清除旧配置
+            if (storedVersion !== currentVersion || storedInternalVersion !== currentInternalVersion) {
+                console.log(`版本更新: ${storedVersion || '无'} (内部: ${storedInternalVersion || '无'}) -> ${currentVersion} (内部: ${currentInternalVersion})`);
                 localStorage.removeItem('yd_sort_state');
                 localStorage.setItem('yd_script_version', currentVersion);
+                localStorage.setItem('yd_script_internal_version', currentInternalVersion);
                 console.log('已清除旧配置，应用新配置');
             } else {
-                console.log(`当前版本: ${currentVersion}`);
+                console.log(`当前版本: ${currentVersion} (内部: ${currentInternalVersion})`);
             }
         } catch (e) {
             console.error('版本检查失败:', e);
@@ -113,6 +117,7 @@
         try {
             localStorage.removeItem('yd_sort_state');
             localStorage.removeItem('yd_script_version');
+            localStorage.removeItem('yd_script_internal_version');
             console.log('已清除所有配置');
             显示提示('已清除所有配置');
         } catch (e) {
