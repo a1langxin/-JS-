@@ -493,10 +493,10 @@
         for (const sel of 选择器.内容项) {
             const 候选项目 = Array.from(面板.querySelectorAll(sel));
             所有项目 = 候选项目.filter(item => {
-                const isButton = item.tagName === 'BUTTON' || item.closest('button') || item.closest('.btn___N0geJ');
-                // 进一步确保不是子栏目按钮
-                const isSubButton = item.textContent.includes('提问') || item.textContent.includes('回答') || item.textContent.includes('文章') || item.textContent.includes('问答');
-                return !isButton && !isSubButton;
+                // 只排除明确的按钮元素
+                const isButtonElement = item.tagName === 'BUTTON';
+                const isInButtonContainer = item.closest('.btn___N0geJ') !== null;
+                return !isButtonElement && !isInButtonContainer;
             });
             if (所有项目.length > 0) break;
         }
@@ -601,10 +601,10 @@
         for (const sel of 选择器.内容项) {
             const 候选项目 = Array.from(面板.querySelectorAll(sel));
             所有项目 = 候选项目.filter(item => {
-                const isButton = item.tagName === 'BUTTON' || item.closest('button') || item.closest('.btn___N0geJ');
-                // 进一步确保不是子栏目按钮
-                const isSubButton = item.textContent.includes('提问') || item.textContent.includes('回答') || item.textContent.includes('文章') || item.textContent.includes('问答');
-                return !isButton && !isSubButton;
+                // 只排除明确的按钮元素
+                const isButtonElement = item.tagName === 'BUTTON';
+                const isInButtonContainer = item.closest('.btn___N0geJ') !== null;
+                return !isButtonElement && !isInButtonContainer;
             });
             if (所有项目.length > 0) break;
         }
